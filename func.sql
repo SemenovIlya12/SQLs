@@ -21,11 +21,11 @@ VALUES ('spec', 'id', 1);
 CREATE OR REPLACE FUNCTION get_next_value(p_table_name VARCHAR, p_column_name VARCHAR)
 RETURNS INT AS $$
 DECLARE
-    v_current_max INT;
-    v_special_id INT;
+    current_max INT;
+    spec_id INT;
 BEGIN
     -- Проверяем, есть ли запись в таблице spec
-    SELECT id, current_max_value INTO v_special_id, v_current_max
+    SELECT id, current_max_value INTO spec_id, current_max
     FROM spec
     WHERE table_name = p_table_name AND column_name = p_column_name;
 
@@ -33,22 +33,22 @@ BEGIN
         -- Если запись есть, инкрементируем значение
         UPDATE spec
         SET current_max_value = current_max_value + 1
-        WHERE id = v_special_id;
+        WHERE id = spec_id;
 
-        RETURN v_current_max + 1;
+        RETURN current_max + 1;
     ELSE
         -- Если записи нет, ищем максимальное значение в запрашиваемой таблице
         EXECUTE format('SELECT COALESCE(MAX(%I), 0) FROM %I', p_column_name, p_table_name)
-        INTO v_current_max;
+        INTO current_max;
 
         -- Рекурсивно вызываем функцию для получения следующего идентификатора для таблицы spec
-        v_special_id := get_next_value('spec', 'id');
+        spec_id := get_next_value('spec', 'id');
 
         -- Вставляем новую запись в таблицу spec
         INSERT INTO spec (id, table_name, column_name, current_max_value)
-        VALUES (v_special_id, p_table_name, p_column_name, v_current_max + 1);
+        VALUES (spec_id, p_table_name, p_column_name, current_max + 1);
 
-        RETURN v_current_max + 1;
+        RETURN current_max + 1;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
